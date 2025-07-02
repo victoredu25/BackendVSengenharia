@@ -3,8 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
+const { PrismaClient } = require('@prisma/client');
 const verifyToken = require('./middleware/verifytoken');
 
 const app = express();
@@ -13,16 +13,19 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// REGISTER
 app.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'Nome, email e senha são obrigatórios.' });
+  }
 
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return res.status(400).json({ error: 'Email já cadastrado.' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = await prisma.user.create({
       data: { email, password: hashedPassword, name },
     });
@@ -31,13 +34,16 @@ app.post('/register', async (req, res) => {
       message: 'Usuário criado com sucesso.',
       user: { id: newUser.id, email: newUser.email, name: newUser.name },
     });
-  } catch {
+  } catch (err) {
+    console.error('Erro ao registrar usuário:', err);
     res.status(500).json({ error: 'Erro no servidor.' });
   }
 });
 
+// LOGIN
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
+
   if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
 
   try {
@@ -50,44 +56,48 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.json({ message: 'Login realizado com sucesso.', token });
-  } catch {
+  } catch (err) {
+    console.error('Erro no login:', err);
     res.status(500).json({ error: 'Erro no servidor.' });
   }
 });
 
+// GET USER
 app.get('/users/:id', verifyToken, async (req, res) => {
-  const { id } = req.params;
-  if (parseInt(id) !== req.userId) return res.status(403).json({ error: 'Acesso negado' });
+  const id = parseInt(req.params.id, 10);
+
+  if (id !== req.userId) return res.status(403).json({ error: 'Acesso negado.' });
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, email: true, name: true, createdAt: true },
     });
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
 
     res.json(user);
-  } catch {
-    res.status(500).json({ error: 'Erro no servidor' });
+  } catch (err) {
+    console.error('Erro ao buscar usuário:', err);
+    res.status(500).json({ error: 'Erro no servidor.' });
   }
 });
 
+// UPDATE USER
 app.put('/users/:id', verifyToken, async (req, res) => {
-  const { id } = req.params;
+  const id = parseInt(req.params.id, 10);
   const { name, email, password } = req.body;
 
-  if (parseInt(id) !== req.userId) {
-    return res.status(403).json({ error: 'Acesso negado' });
-  }
-
-  const updateData = {};
-  if (name) updateData.name = name;
-  if (email) updateData.email = email;
-  if (password) updateData.password = await bcrypt.hash(password, 10);
+  if (id !== req.userId) return res.status(403).json({ error: 'Acesso negado.' });
 
   try {
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (password) updateData.password = await bcrypt.hash(password, 10);
+
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: updateData,
       select: { id: true, email: true, name: true, createdAt: true },
     });
@@ -97,32 +107,27 @@ app.put('/users/:id', verifyToken, async (req, res) => {
       user: updatedUser,
     });
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao atualizar usuário:', err);
     res.status(500).json({ error: 'Erro ao atualizar usuário.' });
   }
 });
 
+// DELETE USER
 app.delete('/users/:id', verifyToken, async (req, res) => {
-  const { id } = req.params;
+  const id = parseInt(req.params.id, 10);
 
-  if (parseInt(id) !== req.userId) {
-    return res.status(403).json({ error: 'Acesso negado' });
-  }
+  if (id !== req.userId) return res.status(403).json({ error: 'Acesso negado.' });
 
   try {
-    await prisma.user.delete({
-      where: { id: parseInt(id) }
-    });
-
+    await prisma.user.delete({ where: { id } });
     res.json({ message: 'Conta deletada com sucesso.' });
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao deletar usuário:', err);
     res.status(500).json({ error: 'Erro ao deletar usuário.' });
   }
 });
 
-
-
+// START SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
