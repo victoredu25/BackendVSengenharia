@@ -1,12 +1,14 @@
+// Carrega as variáveis do .env
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-const { PrismaClient } = require('./prisma/prisma');
+const { PrismaClient } = require('@prisma/client'); // IMPORTAÇÃO CERTA
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const prisma = new PrismaClient();
-
-const jwt = require('jsonwebtoken');
 
 app.use(cors());
 app.use(express.json());
@@ -52,12 +54,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
-
-
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -66,19 +62,16 @@ app.post('/login', async (req, res) => {
   }
 
   try {
-    // Procura usuário no banco
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Credenciais inválidas.' });
     }
 
-    // Compara senha
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Credenciais inválidas.' });
     }
 
-    // Gera token JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET,
@@ -90,4 +83,9 @@ app.post('/login', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Erro no servidor.' });
   }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
