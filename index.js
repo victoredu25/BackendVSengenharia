@@ -5,7 +5,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
-const verifyToken = require('./middleware/verifyToken');
+const verifyToken = require('./middleware/verifytoken');
 
 const app = express();
 const prisma = new PrismaClient();
