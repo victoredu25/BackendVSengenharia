@@ -13,6 +13,11 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// Rota raiz pra evitar 404 no domínio base
+app.get('/', (req, res) => {
+  res.send('Backend rodando, mas aqui não tem página pra abrir! 🚀');
+});
+
 // REGISTER
 app.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
