@@ -91,11 +91,25 @@ app.get('/users/:id', verifyToken, async (req, res) => {
 // UPDATE USER
 app.put('/users/:id', verifyToken, async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, email, password } = req.body;
+  const { name, email, password, senhaAtual } = req.body;
 
   if (id !== req.userId) return res.status(403).json({ error: 'Acesso negado.' });
 
   try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    // Verifica se a senha atual foi fornecida
+    if (!senhaAtual) {
+      return res.status(400).json({ error: 'Senha atual é obrigatória para alterar dados.' });
+    }
+
+    // Verifica se a senha atual está correta
+    const senhaConfere = await bcrypt.compare(senhaAtual, user.password);
+    if (!senhaConfere) {
+      return res.status(403).json({ error: 'Senha atual incorreta.' });
+    }
+
     const updateData = {};
     if (name) updateData.name = name;
     if (email) updateData.email = email;
@@ -116,6 +130,7 @@ app.put('/users/:id', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar usuário.' });
   }
 });
+
 
 // DELETE USER
 app.delete('/users/:id', verifyToken, async (req, res) => {
