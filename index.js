@@ -46,6 +46,7 @@ app.post('/register', async (req, res) => {
 });
 
 // LOGIN
+// LOGIN
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -60,12 +61,17 @@ app.post('/login', async (req, res) => {
 
     const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    res.json({ message: 'Login realizado com sucesso.', token });
+    res.json({ 
+      message: 'Login realizado com sucesso.', 
+      token,
+      userId: user.id  // <<< Essa linha aqui é a atualização
+    });
   } catch (err) {
     console.error('Erro no login:', err);
     res.status(500).json({ error: 'Erro no servidor.' });
   }
 });
+
 
 // GET USER
 app.get('/users/:id', verifyToken, async (req, res) => {
